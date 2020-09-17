@@ -9,13 +9,14 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <event2/event.h>
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
-#include <event2/event.h>
 
 int tcp_connect_server(const char *server_ip, int port);
 
 void cmd_msg_cb(int fd, short events, void *arg);
+// void socket_read_cb(int fd, short events, void *arg);
 void server_msg_cb(struct bufferevent *bev, void *arg);
 void event_cb(struct bufferevent *bev, short event, void *arg);
 
@@ -38,6 +39,12 @@ int main(int argc, char **argv)
     printf("connect to server successful\n");
 
     struct event_base *base = event_base_new();
+
+    // struct event *ev_sockfd = event_new(base, sockfd, EV_READ|EV_PERSIST, socket_read_cb, NULL);
+    // event_add(ev_sockfd, NULL);
+
+    // struct event* ev_cmd = event_new(base, STDIN_FILENO, EV_READ|EV_PERSIST, cmd_msg_cb, (void*)&sockfd);
+    // event_add(ev_cmd, NULL);
 
     struct bufferevent *bev = bufferevent_socket_new(base, sockfd,
                                                      BEV_OPT_CLOSE_ON_FREE);
@@ -72,11 +79,27 @@ void cmd_msg_cb(int fd, short events, void *arg)
         exit(1);
     }
 
+    // int sockfd = *((int *)arg);
+    // write(sockfd, msg, ret);
     struct bufferevent *bev = (struct bufferevent *)arg;
 
     //把终端的消息发送给服务器端
     bufferevent_write(bev, msg, ret);
 }
+
+// void socket_read_cb(int fd, short events, void *arg)
+// {
+//     char msg[1024];
+//     int len = read(fd, msg, sizeof(msg)-1);
+//     if (len <= 0)
+//     {
+//         perror("read fail");
+//         exit(1);
+//     }
+
+//     msg[len] = '\0';
+//     printf("recv %s from server\n", msg);
+// }
 
 ////////////////////////
 ///以下是bufferevent相关回调

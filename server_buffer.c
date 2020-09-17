@@ -6,6 +6,7 @@
 #include <event2/bufferevent.h>
 
 void accept_cb(int fd, short events, void *arg);
+// void socket_read_cb(int fd, short events, void *arg);
 void socket_read_cb(struct bufferevent *bev, void *arg);
 void event_cb(struct bufferevent *bev, short event, void *arg);
 int tcp_server_init(int port, int listen_num);
@@ -49,9 +50,36 @@ void accept_cb(int fd, short events, void *arg)
 
     struct bufferevent *bev = bufferevent_socket_new(base, sockfd, BEV_OPT_CLOSE_ON_FREE);
     bufferevent_setcb(bev, socket_read_cb, NULL, event_cb, NULL);
+    // bufferevent_setcb(bev, socket_read_cb, NULL, event_cb, arg);
 
     bufferevent_enable(bev, EV_READ | EV_PERSIST);
+
+    // struct event* ev = event_new(NULL, -1, 0, NULL, NULL);
+    // event_assign(ev, base, sockfd, EV_READ|EV_PERSIST, socket_read_cb, (void*)ev);
+    // event_add(ev, NULL);
 }
+
+// void socket_read_cb(int fd, short events, void *arg)
+// {
+//     char msg[4096];
+//     struct event *ev = (struct event*)arg;
+//     int len = read(fd, msg, sizeof(msg) - 1);
+
+//     if (len<=0)
+//     {
+//         printf("some error happen when read\n");
+//         event_free(ev);
+//         close(fd);
+//         return;
+//     }
+
+//     msg[len] = '\0';
+//     printf("recv the client msg : %s\n", msg);
+
+//     char reply_msg[4096] = "I have received the msg: ";
+//     strcat(reply_msg + strlen(reply_msg), msg);
+//     write(fd, reply_msg, strlen(reply_msg));
+// }
 
 void socket_read_cb(struct bufferevent *bev, void *arg)
 {
@@ -65,6 +93,7 @@ void socket_read_cb(struct bufferevent *bev, void *arg)
     char reply_msg[4096] = "I have received the msg: ";
 
     strcat(reply_msg, msg);
+    // strcat(reply_msg + strlen(reply_msg), msg);
     bufferevent_write(bev, reply_msg, strlen(reply_msg));
 }
 
