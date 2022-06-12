@@ -101,9 +101,18 @@ void http_handler(struct evhttp_request *request, void *arg) {
     printf("q=%s\n", evhttp_find_header(&params, "q"));
     printf("s=%s\n", evhttp_find_header(&params, "s"));
 
+    //打印请求header
+    struct evkeyvalq *headers = evhttp_request_get_input_headers(request);
+    for (struct evkeyval *header = headers->tqh_first; header; header = header->next.tqe_next) {
+        printf("    %s: %s\n", header->key, header->value);
+    }
+
     //获取POST数据
-    char *post_data = (char *) request->input_buffer;
-    printf("post_data=%s\n", post_data);
+    // char *post_data = (char *) request->input_buffer;
+    // printf("post_data=%s\n", post_data);
+    size_t post_size = evbuffer_get_length(request->input_buffer);
+    unsigned char *post_data = evbuffer_pullup(request->input_buffer, -1);
+    printf("post_data size: %ld, post_data=%s\n", post_size, post_data);
 
     evhttp_add_header(request->output_headers, "Server", MYMETHOD_SIGNATURE);
     evhttp_add_header(request->output_headers, "Content-Type", "text/plain; charset=UTF-8");
