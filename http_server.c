@@ -12,13 +12,14 @@
 #define MYMETHOD_SIGNATURE "my httpd v 0.0.1"
 
 void http_handler(struct evhttp_request *req, void *arg);
+
 void show_help();
+
 void signal_handler(int sig);
 
 struct event_base *base;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     signal(SIGHUP, signal_handler);
     signal(SIGTERM, signal_handler);
     signal(SIGINT, signal_handler);
@@ -30,40 +31,35 @@ int main(int argc, char *argv[])
     int httpd_option_timeout = 120; //in seconds
 
     int c;
-    while ((c = getopt(argc, argv, "l:p:dt:h")) != -1)
-    {
-        switch (c)
-        {
-        case 'l':
-            httpd_option_listen = optarg;
-            break;
-        case 'p':
-            httpd_option_port = atoi(optarg);
-            break;
-        case 'd':
-            httpd_option_daemon = 1;
-            break;
-        case 't':
-            httpd_option_timeout = atoi(optarg);
-            break;
-        case 'h':
-        default:
-            show_help();
-            exit(EXIT_SUCCESS);
+    while ((c = getopt(argc, argv, "l:p:dt:h")) != -1) {
+        switch (c) {
+            case 'l':
+                httpd_option_listen = optarg;
+                break;
+            case 'p':
+                httpd_option_port = atoi(optarg);
+                break;
+            case 'd':
+                httpd_option_daemon = 1;
+                break;
+            case 't':
+                httpd_option_timeout = atoi(optarg);
+                break;
+            case 'h':
+            default:
+                show_help();
+                exit(EXIT_SUCCESS);
         }
     }
 
-    if (httpd_option_daemon)
-    {
+    if (httpd_option_daemon) {
         pid_t pid;
         pid = fork();
-        if (pid < 0)
-        {
+        if (pid < 0) {
             perror("fork failed");
             exit(EXIT_FAILURE);
         }
-        if (pid > 0)
-        {
+        if (pid > 0) {
             //退出父进程
             exit(EXIT_SUCCESS);
         }
@@ -89,11 +85,10 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void http_handler(struct evhttp_request *request, void *arg)
-{
+void http_handler(struct evhttp_request *request, void *arg) {
     const struct evhttp_uri *evhttp_uri = evhttp_request_get_evhttp_uri(request);
     char uri[8192];
-    evhttp_uri_join((struct evhttp_uri *)evhttp_uri, uri, 8192);
+    evhttp_uri_join((struct evhttp_uri *) evhttp_uri, uri, 8192);
     printf("accept request url:%s\n", uri);
 
     char *decoded_uri = evhttp_decode_uri(uri);
@@ -107,7 +102,7 @@ void http_handler(struct evhttp_request *request, void *arg)
     printf("s=%s\n", evhttp_find_header(&params, "s"));
 
     //获取POST数据
-    char *post_data = (char *)request->input_buffer;
+    char *post_data = (char *) request->input_buffer;
     printf("post_data=%s\n", post_data);
 
     evhttp_add_header(request->output_headers, "Server", MYMETHOD_SIGNATURE);
@@ -120,8 +115,7 @@ void http_handler(struct evhttp_request *request, void *arg)
     evbuffer_free(evbuf);
 }
 
-void show_help()
-{
+void show_help() {
     char *help = "writen by Min\n\n"
                  "-l <ip_addr> interface to listen on, default is 0.0.0.0\n"
                  "-p <num>     port number to listen on, default is 8080\n"
@@ -132,15 +126,13 @@ void show_help()
     fprintf(stderr, "%s", help);
 }
 
-void signal_handler(int sig)
-{
-    switch (sig)
-    {
-    case SIGTERM:
-    case SIGHUP:
-    case SIGQUIT:
-    case SIGINT:
-        event_base_loopbreak(base);
-        break;
+void signal_handler(int sig) {
+    switch (sig) {
+        case SIGTERM:
+        case SIGHUP:
+        case SIGQUIT:
+        case SIGINT:
+            event_base_loopbreak(base);
+            break;
     }
 }

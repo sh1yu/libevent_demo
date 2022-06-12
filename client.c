@@ -10,31 +10,27 @@
 #include <event2/event.h>
 
 // 从网络句柄fd中读取数据，写入句柄 arg
-void send_msg_cb(int fd, short events, void *arg)
-{
+void send_msg_cb(int fd, short events, void *arg) {
     char msg[1024] = {};
 
     int ret = read(fd, msg, sizeof(msg));
-    if (ret <= 0)
-    {
+    if (ret <= 0) {
         perror("read fail ");
         exit(1);
     }
     // arg为void *类型，转换为 int *类型后进行解引用
-    int sockfd = *((int *)arg);
+    int sockfd = *((int *) arg);
 
     write(sockfd, msg, ret);
     printf("write: %s\n", msg);
 }
 
 // 从fd中读取数据然后打印
-void read_msg_cb(int fd, short events, void *arg)
-{
+void read_msg_cb(int fd, short events, void *arg) {
     char msg1[1024];
 
     int len = read(fd, msg1, sizeof(msg1) - 1);
-    if (len <= 0)
-    {
+    if (len <= 0) {
         perror("read error!!!");
         exit(1);
     }
@@ -43,14 +39,12 @@ void read_msg_cb(int fd, short events, void *arg)
 }
 
 //根据给定的server ip和port，创建并返回网络句柄fd
-int connect_server(const char *server_ip, const int port)
-{
+int connect_server(const char *server_ip, const int port) {
     int sockfd, retcode;
 
     //创建一个空白的 以太网tcp socket, 返回其句柄
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (-1 == sockfd)
-    {
+    if (-1 == sockfd) {
         perror("socket is error");
         exit(-1);
     }
@@ -60,16 +54,14 @@ int connect_server(const char *server_ip, const int port)
     sock.sin_family = AF_INET;
     sock.sin_port = htons(port);
     retcode = inet_aton(server_ip, &sock.sin_addr);
-    if (retcode == 0)
-    {
+    if (retcode == 0) {
         errno = EINVAL;
         return -1;
     }
 
     //使用空白socket和指定的 sockaddr 网络端口来打开连接，此时sockfd句柄指向的网络连接被打开
-    retcode = connect(sockfd, (struct sockaddr *)&sock, sizeof(sock));
-    if (retcode == -1)
-    {
+    retcode = connect(sockfd, (struct sockaddr *) &sock, sizeof(sock));
+    if (retcode == -1) {
         perror("connect");
         close(sockfd);
         return -1;
@@ -82,17 +74,14 @@ int connect_server(const char *server_ip, const int port)
     return sockfd;
 }
 
-int main(int argc, char **argv)
-{
-    if (argc < 3)
-    {
+int main(int argc, char **argv) {
+    if (argc < 3) {
         printf("please input two param.\n");
         return -1;
     }
 
     int sockfd = connect_server(argv[1], atoi(argv[2]));
-    if (sockfd == -1)
-    {
+    if (sockfd == -1) {
         printf("connect is error.\n");
         return -1;
     }
@@ -115,7 +104,7 @@ int main(int argc, char **argv)
     //send_msg_cb回调函数需要传入arg参数作为网络句柄用于数据转发，因此将sockfd转为void*然后传入
     struct event *ev2 = event_new(base, STDIN_FILENO,
                                   EV_READ | EV_PERSIST, send_msg_cb,
-                                  (void *)&sockfd);
+                                  (void *) &sockfd);
     //添加事件到事件循环.应为不需要设置超时触发，所以timeval参数保持为NULL
     event_add(ev2, NULL);
 

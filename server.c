@@ -6,15 +6,13 @@
 
 //处理客户端发送过来的数据，其中参数arg为事件本身。
 //之所以要把事件对象本身传递过来，是为了在读取出错时可以关闭该事件
-void socket_read_cb(int fd, short events, void *arg)
-{
+void socket_read_cb(int fd, short events, void *arg) {
     char msg[4096];
 
     //将参数还原回event事件对象
-    struct event *ev = (struct event *)arg;
+    struct event *ev = (struct event *) arg;
     int len = read(fd, msg, sizeof(msg) - 1);
-    if (len <= 0)
-    {
+    if (len <= 0) {
         //读取出错，关闭事件。注意此处是在事件回调函数内关闭事件
         if (len == 0)
             printf("closed by peer\n");
@@ -38,8 +36,7 @@ void socket_read_cb(int fd, short events, void *arg)
 
 //accept回调函数，触发该事件后，新建一个socket句柄，然后使用该socket进行数据交互
 //socket句柄创建完成后会新建相关事件，然后绑定到base上
-void accept_cb(int fd, short events, void *arg)
-{
+void accept_cb(int fd, short events, void *arg) {
     //准备新建的sockfd句柄，实际上就是一个int
     evutil_socket_t sockfd;
 
@@ -51,7 +48,7 @@ void accept_cb(int fd, short events, void *arg)
     // 等待句柄fd主动发起连接。被连接之后，使用新的socket建立连接，
     // 并设置client指向的sockaddr资源和sockaddr长度.
     // 最后返回新建的socket的句柄
-    sockfd = accept(fd, (struct sockaddr *)&client, &len);
+    sockfd = accept(fd, (struct sockaddr *) &client, &len);
 
     // 将被连接而建立的socket句柄设置为非阻塞
     evutil_make_socket_nonblocking(sockfd);
@@ -59,7 +56,7 @@ void accept_cb(int fd, short events, void *arg)
     printf("accept a client %d\n", sockfd);
 
     // arg中传递过来的参数为event_base，因为新创建的socket还没有注册事件，需要主动注册事件
-    struct event_base *base = (struct event_base *)arg;
+    struct event_base *base = (struct event_base *) arg;
 
     //仅仅是为了动态创建一个空的event结构体
     struct event *ev = event_new(NULL, -1, 0, NULL, NULL);
@@ -67,14 +64,13 @@ void accept_cb(int fd, short events, void *arg)
     //使用event_assign而不是event_new的原因是需要将事件本身作为该事件触发后回调时的回调参数
     //事件ev触发的条件是在新创建的sockfd句柄上有可读的内容产生，也就是客户端有发送数据过来
     event_assign(ev, base, sockfd, EV_READ | EV_PERSIST,
-                 socket_read_cb, (void *)ev);
+                 socket_read_cb, (void *) ev);
     //添加事件到事件循环.应为不需要设置超时触发，所以timeval参数保持为NULL
     event_add(ev, NULL);
 }
 
 //初始化tcp server，创建并返回一个处于监听状态的socket
-int tcp_server_init(int port, int listen_num)
-{
+int tcp_server_init(int port, int listen_num) {
     int errno_save;
     evutil_socket_t listener_sock;
 
@@ -92,7 +88,7 @@ int tcp_server_init(int port, int listen_num)
     sin.sin_port = htons(port);
 
     //将创建好的listener_sock绑定一个地址，然后监听连接
-    if (bind(listener_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+    if (bind(listener_sock, (struct sockaddr *) &sin, sizeof(sin)) < 0)
         goto error;
     if (listen(listener_sock, listen_num) < 0)
         goto error;
@@ -102,7 +98,7 @@ int tcp_server_init(int port, int listen_num)
 
     return listener_sock;
 
-error:
+    error:
     errno_save = errno;
     evutil_closesocket(listener_sock);
     errno = errno_save;
@@ -110,15 +106,15 @@ error:
     return -1;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
+    // 通过socket接口手动监听一个socket，返回其句柄
     int listener = tcp_server_init(9999, 10);
-    if (listener == -1)
-    {
+    if (listener == -1) {
         perror(" tcp_server_init error ");
         return -1;
     }
 
+    // 初始化event_base
     struct event_base *base = event_base_new();
 
     //添加监听客户端请求连接事件，将base自己作为参数传入，因为回调函数内可能还需要绑定事件
@@ -126,6 +122,7 @@ int main(int argc, char **argv)
                                         accept_cb, base);
     event_add(ev_listen, NULL);
 
+    // 开始事件分发
     event_base_dispatch(base);
 
     return 0;

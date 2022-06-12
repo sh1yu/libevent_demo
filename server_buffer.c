@@ -5,84 +5,8 @@
 #include <event2/event.h>
 #include <event2/bufferevent.h>
 
-void accept_cb(int fd, short events, void *arg);
-// void socket_read_cb(int fd, short events, void *arg);
-void socket_read_cb(struct bufferevent *bev, void *arg);
-void event_cb(struct bufferevent *bev, short event, void *arg);
-int tcp_server_init(int port, int listen_num);
-
-int main(int argc, char **argv)
-{
-
-    int listener = tcp_server_init(9999, 10);
-    if (listener == -1)
-    {
-        perror(" tcp_server_init error ");
-        return -1;
-    }
-
-    struct event_base *base = event_base_new();
-
-    //添加监听客户端请求连接事件
-    struct event *ev_listen = event_new(base, listener, EV_READ | EV_PERSIST,
-                                        accept_cb, base);
-    event_add(ev_listen, NULL);
-
-    event_base_dispatch(base);
-    event_base_free(base);
-
-    return 0;
-}
-
-void accept_cb(int fd, short events, void *arg)
-{
-    evutil_socket_t sockfd;
-
-    struct sockaddr_in client;
-    socklen_t len = sizeof(client);
-
-    sockfd = accept(fd, (struct sockaddr *)&client, &len);
-    evutil_make_socket_nonblocking(sockfd);
-
-    printf("accept a client %d\n", sockfd);
-
-    struct event_base *base = (struct event_base *)arg;
-
-    struct bufferevent *bev = bufferevent_socket_new(base, sockfd, BEV_OPT_CLOSE_ON_FREE);
-    bufferevent_setcb(bev, socket_read_cb, NULL, event_cb, NULL);
-    // bufferevent_setcb(bev, socket_read_cb, NULL, event_cb, arg);
-
-    bufferevent_enable(bev, EV_READ | EV_PERSIST);
-
-    // struct event* ev = event_new(NULL, -1, 0, NULL, NULL);
-    // event_assign(ev, base, sockfd, EV_READ|EV_PERSIST, socket_read_cb, (void*)ev);
-    // event_add(ev, NULL);
-}
-
-// void socket_read_cb(int fd, short events, void *arg)
-// {
-//     char msg[4096];
-//     struct event *ev = (struct event*)arg;
-//     int len = read(fd, msg, sizeof(msg) - 1);
-
-//     if (len<=0)
-//     {
-//         printf("some error happen when read\n");
-//         event_free(ev);
-//         close(fd);
-//         return;
-//     }
-
-//     msg[len] = '\0';
-//     printf("recv the client msg : %s\n", msg);
-
-//     char reply_msg[4096] = "I have received the msg: ";
-//     strcat(reply_msg + strlen(reply_msg), msg);
-//     write(fd, reply_msg, strlen(reply_msg));
-// }
-
-void socket_read_cb(struct bufferevent *bev, void *arg)
-{
+//处理客户端发送过来的数据
+void socket_read_cb(struct bufferevent *bev, void *arg) {
     char msg[4096];
 
     size_t len = bufferevent_read(bev, msg, sizeof(msg));
@@ -97,8 +21,8 @@ void socket_read_cb(struct bufferevent *bev, void *arg)
     bufferevent_write(bev, reply_msg, strlen(reply_msg));
 }
 
-void event_cb(struct bufferevent *bev, short event, void *arg)
-{
+//处理客户端关闭事件
+void event_cb(struct bufferevent *bev, short event, void *arg) {
 
     if (event & BEV_EVENT_EOF)
         printf("connection closed\n");
@@ -111,8 +35,40 @@ void event_cb(struct bufferevent *bev, short event, void *arg)
     //没有什么多余的event需要关闭的
 }
 
-int tcp_server_init(int port, int listen_num)
-{
+//accept回调函数，触发该事件后，新建一个socket句柄，然后使用该socket进行数据交互
+//socket句柄创建完成后会新建相关事件，然后绑定到base上
+void accept_cb(int fd, short events, void *arg) {
+    //准备新建的sockfd句柄，实际上就是一个int
+    evutil_socket_t sockfd;
+
+    struct sockaddr_in client;
+    socklen_t len = sizeof(client);
+
+    // 不同于客户端主动创建sockaddr_in和空白socket来打开网络连接，
+    // 等待句柄fd主动发起连接。被连接之后，使用新的socket建立连接，
+    // 并设置client指向的sockaddr资源和sockaddr长度.
+    // 最后返回新建的socket的句柄
+    sockfd = accept(fd, (struct sockaddr *) &client, &len);
+
+    // 将被连接而建立的socket句柄设置为非阻塞
+    evutil_make_socket_nonblocking(sockfd);
+
+    printf("accept a client %d\n", sockfd);
+
+    // arg中传递过来的参数为event_base，因为新创建的socket还没有注册事件，需要主动注册事件
+    struct event_base *base = (struct event_base *) arg;
+
+    // 和server.c中不同的是，这里创建了一个带buffer的bev
+    struct bufferevent *bev = bufferevent_socket_new(base, sockfd, BEV_OPT_CLOSE_ON_FREE);
+    // bev将读回调和事件回调本身分开了，所以使用event_cb处理关闭事件
+    bufferevent_setcb(bev, socket_read_cb, NULL, event_cb, NULL);
+    // bufferevent_setcb(bev, socket_read_cb, NULL, event_cb, arg);
+
+    bufferevent_enable(bev, EV_READ | EV_PERSIST);
+}
+
+//初始化tcp server，创建并返回一个处于监听状态的socket
+int tcp_server_init(int port, int listen_num) {
     int errno_save;
     evutil_socket_t listener;
 
@@ -128,7 +84,7 @@ int tcp_server_init(int port, int listen_num)
     sin.sin_addr.s_addr = 0;
     sin.sin_port = htons(port);
 
-    if (bind(listener, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+    if (bind(listener, (struct sockaddr *) &sin, sizeof(sin)) < 0)
         goto error;
 
     if (listen(listener, listen_num) < 0)
@@ -139,10 +95,33 @@ int tcp_server_init(int port, int listen_num)
 
     return listener;
 
-error:
+    error:
     errno_save = errno;
     evutil_closesocket(listener);
     errno = errno_save;
 
     return -1;
+}
+
+int main(int argc, char **argv) {
+
+    // 通过socket接口手动监听一个socket，返回其句柄
+    int listener = tcp_server_init(9999, 10);
+    if (listener == -1) {
+        perror(" tcp_server_init error ");
+        return -1;
+    }
+
+    // 初始化event_base
+    struct event_base *base = event_base_new();
+
+    //添加监听客户端请求连接事件
+    struct event *ev_listen = event_new(base, listener, EV_READ | EV_PERSIST,
+                                        accept_cb, base);
+    event_add(ev_listen, NULL);
+
+    event_base_dispatch(base);
+    event_base_free(base);
+
+    return 0;
 }

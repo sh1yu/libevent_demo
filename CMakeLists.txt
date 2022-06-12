@@ -15,12 +15,15 @@ target_link_libraries(server event)
 add_executable(client client.c)
 target_link_libraries(client event)
 
+
+# buffer在server的基础上添加了buffer, 使用bev替代了ev
 add_executable(server_buffer server_buffer.c)
 target_link_libraries(server_buffer event)
 
 add_executable(client_buffer client_buffer.c)
 target_link_libraries(server_buffer event)
 
+# server2在buffer的基础上简化了listener的构造，不用自己构造socket
 add_executable(server2 server2.c)
 target_link_libraries(server2 event)
 

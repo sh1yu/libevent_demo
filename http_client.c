@@ -8,15 +8,17 @@
 #include <string.h>
 
 void RemoteReadCallback(struct evhttp_request *remote_rsp, void *arg);
+
 int ReadHeaderDoneCallback(struct evhttp_request *remote_rsp, void *arg);
+
 void ReadChunkCallback(struct evhttp_request *remote_rsp, void *arg);
+
 void RemoteRequestErrorCallback(enum evhttp_request_error error, void *arg);
+
 void RemoteConnectionCloseCallback(struct evhttp_connection *connection, void *arg);
 
-int main(int argc, char **argv)
-{
-    if (argc != 2)
-    {
+int main(int argc, char **argv) {
+    if (argc != 2) {
         printf("usage:%s url", argv[1]);
         return 1;
     }
@@ -37,8 +39,7 @@ int main(int argc, char **argv)
         port = 80;
     const char *request_url = url;
     const char *path = evhttp_uri_get_path(uri);
-    if (path == NULL || strlen(path) == 0)
-    {
+    if (path == NULL || strlen(path) == 0) {
         request_url = "/";
     }
 
@@ -53,43 +54,36 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void RemoteReadCallback(struct evhttp_request *remote_rsp, void *arg)
-{
-    event_base_loopexit((struct event_base *)arg, NULL);
+void RemoteReadCallback(struct evhttp_request *remote_rsp, void *arg) {
+    event_base_loopexit((struct event_base *) arg, NULL);
 }
 
-int ReadHeaderDoneCallback(struct evhttp_request *remote_rsp, void *arg)
-{
+int ReadHeaderDoneCallback(struct evhttp_request *remote_rsp, void *arg) {
     fprintf(stderr, "< HTTP/1.1 %d %s\n", evhttp_request_get_response_code(remote_rsp), evhttp_request_get_response_code_line(remote_rsp));
     struct evkeyvalq *headers = evhttp_request_get_input_headers(remote_rsp);
     struct evkeyval *header;
-    TAILQ_FOREACH(header, headers, next)
-    {
+    TAILQ_FOREACH(header, headers, next) {
         fprintf(stderr, "< %s: %s\n", header->key, header->value);
     }
     fprintf(stderr, "< \n");
     return 0;
 }
 
-void ReadChunkCallback(struct evhttp_request *remote_rsp, void *arg)
-{
+void ReadChunkCallback(struct evhttp_request *remote_rsp, void *arg) {
     char buf[4096];
     struct evbuffer *evbuf = evhttp_request_get_input_buffer(remote_rsp);
     int n = 0;
-    while ((n = evbuffer_remove(evbuf, buf, 4096)) > 0)
-    {
+    while ((n = evbuffer_remove(evbuf, buf, 4096)) > 0) {
         fwrite(buf, n, 1, stdout);
     }
 }
 
-void RemoteRequestErrorCallback(enum evhttp_request_error error, void *arg)
-{
+void RemoteRequestErrorCallback(enum evhttp_request_error error, void *arg) {
     fprintf(stderr, "request failed\n");
-    event_base_loopexit((struct event_base *)arg, NULL);
+    event_base_loopexit((struct event_base *) arg, NULL);
 }
 
-void RemoteConnectionCloseCallback(struct evhttp_connection *connection, void *arg)
-{
+void RemoteConnectionCloseCallback(struct evhttp_connection *connection, void *arg) {
     fprintf(stderr, "remote connection closed\n");
-    event_base_loopexit((struct event_base *)arg, NULL);
+    event_base_loopexit((struct event_base *) arg, NULL);
 }
